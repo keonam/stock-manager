@@ -1,0 +1,93 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>추천 종목</title>
+  <style>
+    :root{--bg:#f4efe6;--card:#fffdf8;--ink:#20242d;--muted:#68707b;--line:#d8cfbd;--accent:#1e5c57;--gold:#f0d37b;--good:#18734d;--bad:#c84639}
+    *{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Apple SD Gothic Neo",sans-serif;background:radial-gradient(circle at top right,rgba(30,92,87,.1),transparent 24%),var(--bg);color:var(--ink)}
+    .wrap{width:min(90vw,1600px);margin:0 auto;padding:24px 0}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.06)}
+    .hero{padding:26px;background:linear-gradient(135deg,#20344f,#1e5c57);color:#fff}.hero h1{margin:0 0 10px;font-size:34px}.hero p{margin:0;line-height:1.6;color:rgba(255,255,255,.86);max-width:1080px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{border:0;border-radius:999px;padding:12px 16px;font:inherit;cursor:pointer;background:var(--gold);font-weight:700;color:#1f2330}.btn.secondary{background:#fff;border:1px solid rgba(255,255,255,.25);color:#1f2330;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .dual{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.card{padding:20px}.lead{margin:0 0 14px;color:var(--muted);line-height:1.55}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:#fff9ef;border:1px solid var(--line);border-radius:18px;padding:14px}.metric .k{font-size:12px;color:var(--muted)}.metric .v{font-size:24px;font-weight:700;margin-top:8px}
+    .table{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:1900px;font-size:13px}th,td{padding:10px 12px;border-bottom:1px solid #eee6d8;text-align:left;white-space:nowrap}th{background:#f8f1e4;position:sticky;top:0}.num{text-align:right}.table td:nth-child(n+4),.table th:nth-child(n+4){text-align:right}.good{color:var(--good);font-weight:700}.bad{color:var(--bad);font-weight:700}
+    .list{margin:0;padding-left:18px;line-height:1.7}.badge{display:inline-flex;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}.badge.aggressive{background:#e8f5ef;color:#18734d}.badge.balance{background:#fff4da;color:#9a6b16}.badge.watch{background:#f1ece1;color:#68707b}
+    @media(max-width:1180px){.dual,.metric-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>추천 종목</h1>
+      <p>최신 저장 스냅샷과 최근 히스토리, 이미 수집된 일별 종가/거래량/외인·기관 수급 데이터를 함께 이용해 추천 점수를 계산합니다. 모멘텀, 거래량 확인, 종가 구조, 일별 추세 지속성, 수급 흐름, 변동성 리스크, 테마 분산을 함께 봅니다.</p>
+      <div class="controls">
+        <a class="btn secondary" href="/">메인 대시보드</a>
+        <a class="btn secondary" href="/local-ai">로컬 AI 랩</a>
+        <a class="btn secondary" href="/portfolio">나의포트</a>
+        <a class="btn secondary" href="/watchlist">감시목록</a>
+        <button class="btn" id="refreshBtn">추천 새로고침</button>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>추천 요약</h2>
+      <p class="lead">설명 가능한 하이브리드 추천 점수입니다. 저장 스냅샷에 더해 일별 종가 추세와 외인·기관 수급까지 연결해 추천 근거를 강화했습니다.</p>
+      <div class="metric-grid" id="summary"></div>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>추천 필터</h2>
+      <div class="controls">
+        <select id="styleFilter"><option value="">전체 유형</option></select>
+        <select id="themeFilter"><option value="">전체 테마</option></select>
+        <input id="scoreFilter" type="number" step="0.1" placeholder="최소 추천점수 예: 20">
+        <button class="btn" id="applyFilterBtn">필터 적용</button>
+      </div>
+    </section>
+
+    <section class="dual">
+      <article class="card">
+        <h2>추천 해설</h2>
+        <ul class="list" id="summaryList"></ul>
+      </article>
+      <article class="card">
+        <h2>추천 방법</h2>
+        <ul class="list" id="methodList"></ul>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>추천 종목 목록</h2>
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>종목명</th><th>코드</th><th>테마</th><th>추천점수</th><th>유형</th><th>현재가</th><th>등락률</th><th>거래량배수</th><th>시가갭률</th><th>장중변동률</th><th>종가위치</th><th>20일 종가추세</th><th>60일 종가추세</th><th>20일 외인수급</th><th>20일 기관수급</th><th>일별 거래량배수</th><th>최근평균등락률</th><th>양봉일수</th><th>추천사유</th><th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="recommendBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+<script>
+const fmt=v=>v===null||v===undefined||v===''?'-':(typeof v==='number'?(Number.isInteger(v)?v.toLocaleString('ko-KR'):v.toLocaleString('ko-KR',{maximumFractionDigits:2})):String(v));
+const num=v=>{const n=Number(v);return Number.isNaN(n)?null:n};
+async function j(url,opt){const r=await fetch(url,opt);const d=await r.json();if(!r.ok) throw new Error(d.error||'요청 실패');return d}
+function badgeClass(style){return style==='공격형'?'aggressive':style==='균형형'?'balance':'watch'}
+function renderSummary(items){const cards=[['추천 종목 수',items.length],['공격형',items.filter(x=>x.style==='공격형').length],['균형형',items.filter(x=>x.style==='균형형').length],['관찰형',items.filter(x=>x.style==='관찰형').length]];document.getElementById('summary').innerHTML=cards.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${fmt(v)}</div></div>`).join('')}
+function renderFilters(data){const style=document.getElementById('styleFilter'); const theme=document.getElementById('themeFilter'); const currentStyle=style.value; const currentTheme=theme.value; style.innerHTML='<option value="">전체 유형</option>'+(data.styles||[]).map(x=>`<option value="${x}">${x}</option>`).join(''); theme.innerHTML='<option value="">전체 테마</option>'+(data.themes||[]).map(x=>`<option value="${x}">${x}</option>`).join(''); if(currentStyle) style.value=currentStyle; if(currentTheme) theme.value=currentTheme;}
+function renderTable(items){document.getElementById('recommendBody').innerHTML=items.length?items.map(item=>`<tr><td>${item.name}</td><td>${item.code}</td><td>${item.theme}</td><td class="num">${fmt(item.score)}</td><td><span class="badge ${badgeClass(item.style)}">${item.style}</span></td><td class="num">${fmt(item.current_price)}</td><td class="num ${(num(item.change_rate)||0)>0?'good':(num(item.change_rate)||0)<0?'bad':''}">${fmt(item.change_rate)}</td><td class="num">${fmt(item.volume_ratio)}</td><td class="num">${fmt(item.gap_rate)}</td><td class="num">${fmt(item.intraday_range_rate)}</td><td class="num">${fmt(item.close_position)}</td><td class="num ${(num(item.daily_20d_change)||0)>0?'good':(num(item.daily_20d_change)||0)<0?'bad':''}">${fmt(item.daily_20d_change)}</td><td class="num ${(num(item.daily_60d_change)||0)>0?'good':(num(item.daily_60d_change)||0)<0?'bad':''}">${fmt(item.daily_60d_change)}</td><td class="num ${(num(item.daily_foreign_20d)||0)>0?'good':(num(item.daily_foreign_20d)||0)<0?'bad':''}">${fmt(item.daily_foreign_20d)}</td><td class="num ${(num(item.daily_institution_20d)||0)>0?'good':(num(item.daily_institution_20d)||0)<0?'bad':''}">${fmt(item.daily_institution_20d)}</td><td class="num">${fmt(item.daily_volume_multiple)}</td><td class="num">${fmt(item.avg_change)}</td><td class="num">${fmt(item.positive_days)}</td><td>${(item.reasons||[]).join(', ')}</td><td><div class="controls" style="margin:0"><button class="btn secondary add-watch-btn" data-name="${item.name}" data-code="${item.code}">감시추가</button><button class="btn secondary add-portfolio-btn" data-name="${item.name}" data-code="${item.code}">포트추가</button></div></td></tr>`).join(''):'<tr><td colspan="20">추천 종목이 없습니다.</td></tr>'}
+async function load(){const params=new URLSearchParams(); const style=document.getElementById('styleFilter').value; const theme=document.getElementById('themeFilter').value; const minScore=document.getElementById('scoreFilter').value; if(style) params.set('style',style); if(theme) params.set('theme',theme); if(minScore!=='') params.set('min_score',minScore); const d=await j('/api/recommendations'+(params.toString()?`?${params.toString()}`:'')); renderSummary(d.items||[]); renderFilters(d); document.getElementById('summaryList').innerHTML=(d.summary||[]).map(x=>`<li>${x}</li>`).join(''); document.getElementById('methodList').innerHTML=(d.method||[]).map(x=>`<li>${x}</li>`).join(''); renderTable(d.items||[])}
+async function addToWatchlist(name,code){await j('/api/watchlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code,priority:40,action_state:'관찰',memo:'추천 종목 페이지에서 추가'})}); alert(`감시목록에 추가했습니다: ${name}`)}
+async function addToPortfolio(name,code){await j('/api/portfolio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code,quantity:0,avg_price:0,target_weight:0,memo:'추천 종목 페이지에서 추가'})}); alert(`포트에 추가했습니다: ${name}`)}
+document.getElementById('refreshBtn').addEventListener('click',()=>load().catch(err=>alert(err.message)));
+document.getElementById('applyFilterBtn').addEventListener('click',()=>load().catch(err=>alert(err.message)));
+document.getElementById('recommendBody').addEventListener('click',e=>{const w=e.target.closest('.add-watch-btn'); if(w){addToWatchlist(w.dataset.name,w.dataset.code).catch(err=>alert(err.message)); return;} const p=e.target.closest('.add-portfolio-btn'); if(p){addToPortfolio(p.dataset.name,p.dataset.code).catch(err=>alert(err.message));}});
+load().catch(err=>alert(err.message));
+</script>
+</body>
+</html>
+

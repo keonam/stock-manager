@@ -1,0 +1,175 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>감시목록</title>
+  <style>
+    :root{--bg:#f4efe6;--card:#fffdf8;--ink:#20242d;--muted:#68707b;--line:#d8cfbd;--accent:#1e5c57;--gold:#f0d37b;--good:#18734d;--bad:#c84639;--warn:#9a6b16}
+    *{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Apple SD Gothic Neo",sans-serif;background:radial-gradient(circle at top right,rgba(30,92,87,.1),transparent 24%),var(--bg);color:var(--ink)}
+    .wrap{width:min(90vw,1600px);margin:0 auto;padding:24px 0}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.06)}
+    .hero{padding:26px;background:linear-gradient(135deg,#23425a,#1e5c57);color:#fff}.hero h1{margin:0 0 10px;font-size:34px}.hero p{margin:0;line-height:1.6;color:rgba(255,255,255,.86);max-width:920px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{border:0;border-radius:999px;padding:12px 16px;font:inherit;cursor:pointer;background:var(--gold);font-weight:700;color:#1f2330}.btn.secondary{background:#fff;border:1px solid rgba(255,255,255,.25);color:#1f2330;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    .grid{display:grid;grid-template-columns:1fr 1.6fr;gap:18px;margin-top:18px}.dual{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:18px}.card{padding:20px}.lead{margin:0 0 14px;color:var(--muted);line-height:1.55}
+    input,textarea{width:100%;font:inherit;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}textarea{min-height:120px;resize:vertical}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .metric-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.metric{background:#fff9ef;border:1px solid var(--line);border-radius:18px;padding:14px}.metric .k{font-size:12px;color:var(--muted)}.metric .v{font-size:24px;font-weight:700;margin-top:8px}
+    .table{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:1320px;font-size:13px}th,td{padding:10px 12px;border-bottom:1px solid #eee6d8;text-align:left;white-space:nowrap}th{background:#f8f1e4;position:sticky;top:0}.num{text-align:right}.table td:nth-child(n+3),.table th:nth-child(n+3){text-align:right}
+    .good{color:var(--good);font-weight:700}.bad{color:var(--bad);font-weight:700}.warn{color:var(--warn);font-weight:700}.empty{color:var(--muted);padding:16px 4px}.meta{font-size:12px;color:var(--muted)}
+    .badge{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700;margin:0 8px 8px 0}.badge.good{background:#e6f4ec;color:var(--good)}.badge.warn{background:#fff4da;color:var(--warn)}.badge.bad{background:#ffe9e5;color:var(--bad)}
+    .brief-list,.check-list{margin:0;padding-left:18px;line-height:1.7}.detail-box{border:1px solid var(--line);border-radius:18px;background:#fffaf1;padding:16px}.detail-title{font-size:22px;font-weight:700}.detail-sub{margin-top:6px;color:var(--muted)}.detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+    .note{padding:12px 0;border-bottom:1px solid #eee6d8}.note:last-child{border-bottom:0}.note h4{margin:0 0 6px}
+    .grade-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.grade-pill{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:12px}
+    svg{width:100%;height:190px;background:#fff;border:1px solid var(--line);border-radius:18px}.tip{font-size:12px;color:var(--muted);margin-top:8px}.row-selected{background:#f7efe0}
+    @media(max-width:1180px){.grid,.dual,.triple,.field-grid,.metric-grid,.detail-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>감시목록</h1>
+      <p>스크리너 결과나 직접 입력한 종목을 감시목록으로 관리합니다. 최신 저장 스냅샷과 연결해 현재가, 등락률, 거래량배수, 갭, 장중 변동성, 위험 등급까지 함께 점검할 수 있습니다.</p>
+      <div class="controls">
+        <a class="btn secondary" href="/">메인 대시보드</a>
+        <a class="btn secondary" href="/local-ai">로컬 AI 랩</a>
+        <a class="btn secondary" href="/portfolio">나의포트</a>
+        <a class="btn secondary" href="/collection-settings">수집 종목 관리</a>
+        <button class="btn" id="refreshBtn">감시목록 새로고침</button>
+        <button class="btn secondary" id="saveBriefBtn">브리프 저장</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>감시 종목 입력</h2>
+        <p class="lead">종목명만 입력해도 자동 매칭됩니다. 같은 종목은 다시 저장하면 우선순위와 메모가 갱신됩니다.</p>
+        <div class="field-grid">
+          <input id="name" placeholder="종목명 예: 삼성전자">
+          <input id="code" placeholder="종목코드 예: 005930 (선택)">
+          <input id="priority" placeholder="우선순위 예: 50" type="number" step="1"><select id="actionState"><option value="관찰">관찰</option><option value="매수검토">매수검토</option><option value="보유관찰">보유관찰</option><option value="제외검토">제외검토</option></select>
+        </div>
+        <textarea id="memo" placeholder="감시 포인트 메모"></textarea>
+        <div class="controls">
+          <button class="btn" id="saveBtn">감시 종목 저장</button>
+          <button class="btn secondary" id="clearBtn">입력 초기화</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>감시 요약</h2>
+        <p class="lead">최신 저장 시점 기준으로 감시 종목의 분위기와 위험도를 빠르게 봅니다.</p>
+        <div class="metric-grid" id="summary"></div>
+      </article>
+    </section>
+
+    <section class="triple">
+      <article class="card">
+        <h2>감시 브리프</h2>
+        <p class="lead">감시목록 전체 기준으로 오늘 체크할 포인트를 짧은 문장으로 정리합니다.</p>
+        <ul class="brief-list" id="brief"></ul>
+      </article>
+
+      <article class="card">
+        <h2>선택 종목 AI 브리프</h2>
+        <p class="lead">선택한 감시 종목 하나에 대해 자동 생성된 점검 문장을 봅니다.</p>
+        <ul class="brief-list" id="itemBrief"></ul>
+      </article>
+
+      <article class="card">
+        <h2>감시 메모 작성</h2>
+        <p class="lead">선택 종목에 대한 관찰 메모를 날짜별로 쌓아둘 수 있습니다.</p>
+        <input id="noteTitle" placeholder="메모 제목 예: 장중 변동성 확대">
+        <textarea id="noteBody" placeholder="감시 메모 내용을 적어 주세요."></textarea>
+        <div class="controls">
+          <button class="btn" id="saveNoteBtn">감시 메모 저장</button>
+        </div>
+      </article>
+    </section>
+
+    <section class="dual">
+      <article class="card">
+        <h2>선택 종목 상세</h2>
+        <p class="lead">감시 종목을 클릭하면 최근 흐름과 위험 신호를 세부적으로 확인할 수 있습니다.</p>
+        <div class="detail-box">
+          <div class="detail-title" id="detailName">선택된 감시 종목이 없습니다.</div>
+          <div class="detail-sub" id="detailSub">아래 감시목록에서 종목을 선택해 주세요.</div>
+          <div id="detailBadges" style="margin-top:12px"></div>
+          <div class="detail-grid" id="detailGrid"></div>
+          <svg id="historyChart" viewBox="0 0 640 190" preserveAspectRatio="none" style="margin-top:14px"></svg>
+          <div class="tip" id="historyLabel">히스토리 데이터가 없습니다.</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>감시 메모 이력</h2>
+        <p class="lead">선택한 감시 종목의 이전 관찰 메모를 시간순으로 확인합니다.</p>
+        <div id="noteHistory"></div>
+      </article>
+    </section>
+
+    <section class="dual">
+      <article class="card">
+        <h2>등급 변화 추이</h2>
+        <p class="lead">최근 저장 시점 기준으로 위험등급이 어떻게 변했는지 빠르게 확인합니다.</p>
+        <div class="grade-row" id="gradeHistory"></div>
+      </article>
+
+      <article class="card">
+        <h2>오늘 체크리스트</h2>
+        <p class="lead">선택 종목 기준으로 우선 확인할 항목입니다.</p>
+        <ul class="check-list" id="checklist"></ul>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>감시목록 현황</h2>
+      <p class="lead">우선순위 순으로 정렬됩니다. 행을 클릭하면 입력 폼과 상세 패널로 불러오고, 삭제도 바로 가능합니다.</p>
+      <div class="table">
+        <table>
+          <thead>
+            <tr>
+              <th>이름</th><th>코드</th><th>우선순위</th><th>액션상태</th><th>위험등급</th><th>현재가</th><th>등락률</th><th>거래량배수</th><th>시가갭률</th><th>장중변동률</th><th>종가위치</th><th>메모</th><th>관리</th>
+            </tr>
+          </thead>
+          <tbody id="watchBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+<script>
+const state={items:[],selectedCode:''};
+const fmt=v=>v===null||v===undefined||v===''?'-':(typeof v==='number'?(Number.isInteger(v)?v.toLocaleString('ko-KR'):v.toLocaleString('ko-KR',{maximumFractionDigits:2})):String(v));
+const num=v=>{const n=Number(v);return Number.isNaN(n)?null:n};
+async function j(url,opt){const r=await fetch(url,opt);const d=await r.json();if(!r.ok) throw new Error(d.error||'요청 실패');return d}
+function gradeClass(grade){return grade==='경계'?'bad':grade==='주의'?'warn':'good'}
+function renderSummary(summary){const cards=[['감시 종목 수',summary.count||0],['상승 종목',summary.positive_count||0],['거래량 주목',summary.high_volume_count||0],['주의 등급',summary.warning_count||0],['경계 등급',summary.high_risk_count||0]];document.getElementById('summary').innerHTML=cards.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${fmt(v)}</div></div>`).join('')}
+function renderBrief(items){document.getElementById('brief').innerHTML=items&&items.length?items.map(item=>`<li>${item}</li>`).join(''):'<li>감시 브리프가 없습니다.</li>'}
+function renderItemBrief(items){document.getElementById('itemBrief').innerHTML=items&&items.length?items.map(item=>`<li>${item}</li>`).join(''):'<li>선택 종목 브리프가 없습니다.</li>'}
+function renderNoteHistory(notes){document.getElementById('noteHistory').innerHTML=notes&&notes.length?notes.map(note=>`<div class="note"><h4>${note.title}</h4><div class="meta">${note.created_at}</div><div style="margin-top:8px;line-height:1.6">${String(note.body||'').replace(/\n/g,'<br>')}</div></div>`).join(''):'<div class="empty">저장된 감시 메모가 없습니다.</div>'}
+function renderGradeHistory(items){document.getElementById('gradeHistory').innerHTML=items&&items.length?items.map(item=>`<span class="grade-pill ${gradeClass(item.risk_grade)}">${String(item.date||'').slice(5,10)} · ${item.risk_grade} (${fmt(item.risk_score)})</span>`).join(''):'<div class="empty">등급 변화 데이터가 없습니다.</div>'}
+function renderChecklist(items){document.getElementById('checklist').innerHTML=items&&items.length?items.map(item=>`<li>${item}</li>`).join(''):'<li>체크리스트가 없습니다.</li>'}
+function renderTable(items){const body=document.getElementById('watchBody');body.innerHTML=items.length?items.map(item=>`<tr data-code="${item.code}" class="${String(item.code)===String(state.selectedCode)?'row-selected':''}"><td>${item.name}</td><td>${item.code}</td><td class="num">${fmt(item.priority)}</td><td>${item.action_state||'관찰'}</td><td class="${gradeClass(item.risk_grade)}">${item.risk_grade||'-'}</td><td>${fmt(item.current_price)}</td><td class="${(num(item.change_rate)||0)>0?'good':(num(item.change_rate)||0)<0?'bad':''}">${fmt(item.change_rate)}</td><td>${fmt(item.volume_ratio)}</td><td>${fmt(item.gap_rate)}</td><td>${fmt(item.intraday_range_rate)}</td><td>${fmt(item.close_position)}</td><td>${item.memo||'-'}</td><td><button class="btn secondary delete-btn" data-code="${item.code}">삭제</button></td></tr>`).join(''):'<tr><td colspan="13">감시 종목이 없습니다.</td></tr>'}
+function fillForm(item){document.getElementById('name').value=item.name||'';document.getElementById('code').value=item.code||'';document.getElementById('priority').value=item.priority||0;document.getElementById('actionState').value=item.action_state||'관찰';document.getElementById('memo').value=item.memo||''}
+function clearForm(){document.getElementById('name').value='';document.getElementById('code').value='';document.getElementById('priority').value='';document.getElementById('actionState').value='관찰';document.getElementById('memo').value=''}
+function drawHistory(history){const svg=document.getElementById('historyChart');const label=document.getElementById('historyLabel');if(!history||!history.length){svg.innerHTML='';label.textContent='히스토리 데이터가 없습니다.';return}const values=history.map(item=>num(item.price)).filter(v=>v!==null);const labels=history.map(item=>String(item.date||'').slice(5,10));if(!values.length){svg.innerHTML='';label.textContent='히스토리 데이터가 없습니다.';return}const width=640,height=190,pad=20;const min=Math.min(...values),max=Math.max(...values);const span=max-min||1;const pts=values.map((v,i)=>{const x=pad+((width-pad*2)*(values.length===1?0.5:i/(values.length-1)));const y=height-pad-((v-min)/span)*(height-pad*2);return [x,y]});const poly=pts.map(p=>p.join(',')).join(' ');const dots=pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#1e5c57"></circle><text x="${p[0]}" y="${height-6}" text-anchor="middle" font-size="11" fill="#6b7280">${labels[i]}</text>`).join('');svg.innerHTML=`<polyline fill="none" stroke="#1e5c57" stroke-width="3" points="${poly}"></polyline>${dots}`;label.textContent=`최근 ${values.length}개 저장 시점 기준 최저 ${fmt(min)} / 최고 ${fmt(max)}`}
+function renderDetail(item){if(!item){document.getElementById('detailName').textContent='선택된 감시 종목이 없습니다.';document.getElementById('detailSub').textContent='아래 감시목록에서 종목을 선택해 주세요.';document.getElementById('detailBadges').innerHTML='';document.getElementById('detailGrid').innerHTML='';drawHistory([]);renderGradeHistory([]);renderChecklist([]);return}document.getElementById('detailName').textContent=`${item.name} (${item.code})`;document.getElementById('detailSub').textContent=`우선순위 ${fmt(item.priority)} · 최신 기준 ${item.latest_collected_at||'-'} · 위험점수 ${fmt(item.risk_score)}`;const badges=[`<span class="badge ${gradeClass(item.risk_grade)}">위험등급 ${item.risk_grade||'-'}</span>`];if((item.volume_ratio||0)>=1.8)badges.push('<span class="badge warn">거래량 집중</span>');if(Math.abs(item.gap_rate||0)>=3)badges.push('<span class="badge warn">큰 시가갭</span>');if((item.intraday_range_rate||0)>=8)badges.push('<span class="badge bad">고변동</span>');if((item.close_position||100)<=20)badges.push('<span class="badge bad">저가권 마감</span>');document.getElementById('detailBadges').innerHTML=badges.join('');const cards=[['현재가',item.current_price],['등락률',item.change_rate],['거래량배수',item.volume_ratio],['시가갭률',item.gap_rate],['장중변동률',item.intraday_range_rate],['종가위치',item.close_position],['위험점수',item.risk_score],['액션상태',item.action_state||'관찰']];document.getElementById('detailGrid').innerHTML=cards.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${fmt(v)}</div></div>`).join('');drawHistory(item.history||[]);renderGradeHistory(item.grade_history||[]);renderChecklist(item.checklist||[])}
+async function loadItemExtras(code){if(!code){renderItemBrief([]);renderNoteHistory([]);return}const [briefData, notesData]=await Promise.all([j(`/api/watchlist/brief?code=${encodeURIComponent(code)}`),j(`/api/watchlist/notes?code=${encodeURIComponent(code)}`)]);renderItemBrief(briefData.brief||[]);renderNoteHistory(notesData.notes||[])}
+async function load(){const d=await j('/api/watchlist');state.items=d.items||[];renderSummary(d.summary||{});renderBrief(d.brief||[]);if(!state.selectedCode&&state.items.length){state.selectedCode=state.items[0].code}renderTable(state.items);const selected=state.items.find(x=>String(x.code)===String(state.selectedCode))||state.items[0]||null;renderDetail(selected);await loadItemExtras(selected?selected.code:'')}
+async function save(){const payload={name:document.getElementById('name').value,code:document.getElementById('code').value,priority:document.getElementById('priority').value,action_state:document.getElementById('actionState').value,memo:document.getElementById('memo').value};const result=await j('/api/watchlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});state.selectedCode=result.item.code;clearForm();await load()}
+async function saveNote(){if(!state.selectedCode){alert('먼저 감시 종목을 선택해 주세요.');return}const payload={code:state.selectedCode,title:document.getElementById('noteTitle').value,body:document.getElementById('noteBody').value};await j('/api/watchlist/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});document.getElementById('noteTitle').value='';document.getElementById('noteBody').value='';await loadItemExtras(state.selectedCode)}
+function saveBrief(){const selected=state.items.find(x=>String(x.code)===String(state.selectedCode));const lines=['[감시 브리프]', ...(Array.from(document.querySelectorAll('#brief li')).map(x=>x.textContent||'')), '', '[선택 종목 AI 브리프]', ...(Array.from(document.querySelectorAll('#itemBrief li')).map(x=>x.textContent||'')), '', '[오늘 체크리스트]', ...(Array.from(document.querySelectorAll('#checklist li')).map(x=>'- '+(x.textContent||'')))]; if(selected){lines.unshift(`선택 종목: ${selected.name} (${selected.code})`);}
+  const blob=new Blob([lines.join('\n')],{type:'text/plain;charset=utf-8'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`watchlist_brief_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'')}.txt`; a.click(); URL.revokeObjectURL(url);
+}
+async function remove(code){await j('/api/watchlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',code})});if(String(state.selectedCode)===String(code)){state.selectedCode=''}await load()}
+document.getElementById('refreshBtn').addEventListener('click',()=>load().catch(err=>alert(err.message)));
+document.getElementById('saveBtn').addEventListener('click',()=>save().catch(err=>alert(err.message)));
+document.getElementById('saveNoteBtn').addEventListener('click',()=>saveNote().catch(err=>alert(err.message)));
+document.getElementById('saveBriefBtn').addEventListener('click',()=>saveBrief());
+document.getElementById('clearBtn').addEventListener('click',()=>clearForm());
+document.getElementById('watchBody').addEventListener('click',e=>{const del=e.target.closest('.delete-btn');if(del){remove(del.dataset.code).catch(err=>alert(err.message));return}const row=e.target.closest('tr[data-code]');if(!row)return;state.selectedCode=row.dataset.code;const item=state.items.find(x=>String(x.code)===String(row.dataset.code));if(item){fillForm(item);renderTable(state.items);renderDetail(item);loadItemExtras(item.code).catch(err=>alert(err.message))}});
+load().catch(err=>alert(err.message));
+</script>
+</body>
+</html>
+
+

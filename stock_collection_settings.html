@@ -1,0 +1,68 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>수집 종목 관리</title>
+  <style>
+    :root{--bg:#f4efe6;--card:#fffdf8;--ink:#20242d;--muted:#68707b;--line:#d8cfbd;--accent:#1e5c57;--gold:#f0d37b;--soft:#eef6f2;--bad:#c84639}
+    *{box-sizing:border-box}body{margin:0;font-family:"Segoe UI","Apple SD Gothic Neo",sans-serif;background:radial-gradient(circle at top right,rgba(30,92,87,.1),transparent 24%),var(--bg);color:var(--ink)}
+    .wrap{width:min(90vw,1600px);margin:0 auto;padding:24px 0}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.06)}
+    .hero{padding:26px;background:linear-gradient(135deg,#1e5c57,#20344f);color:#fff}.hero h1{margin:0 0 10px;font-size:34px}.hero p{margin:0;line-height:1.6;color:rgba(255,255,255,.86);max-width:900px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.btn{border:0;border-radius:999px;padding:12px 16px;font:inherit;cursor:pointer;background:var(--gold);font-weight:700;color:#1f2330}.btn.secondary{background:#fff;border:1px solid var(--line);color:#1f2330;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.btn.ghost{background:#fff}.btn.danger{background:#fff0ee;color:var(--bad);border:1px solid #efc8c2}
+    .grid{display:grid;grid-template-columns:.9fr 1.35fr;gap:18px;margin-top:18px}.card{padding:20px}.lead{margin:0 0 14px;color:var(--muted);line-height:1.55}
+    input{width:100%;font:inherit;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}.field{margin-top:10px}.table{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:900px;font-size:13px}th,td{padding:10px 12px;border-bottom:1px solid #eee6d8;text-align:left;white-space:nowrap}th{background:#f8f1e4;position:sticky;top:0}
+    .empty{color:var(--muted);padding:16px 4px}.status{margin-top:14px;padding:12px 14px;border-radius:14px;background:var(--soft);border:1px solid #d8ebe3;display:none}.status.show{display:block}.muted{color:var(--muted)}.action-row{display:flex;gap:8px;flex-wrap:wrap}
+    @media(max-width:1080px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>수집 종목 관리</h1>
+      <p>수집 대상 종목을 종목명만으로도 편입할 수 있는 설정 페이지입니다. 종목코드는 선택 입력이며, 비워두면 상장 종목명을 기준으로 자동 매칭합니다. 추가 후에는 삭제와 순서 조정도 바로 가능합니다.</p>
+      <div class="controls">
+        <a class="btn secondary" href="/">메인 대시보드</a>
+        <a class="btn secondary" href="/local-ai">로컬 AI 랩</a>
+        <a class="btn secondary" href="/portfolio">나의포트</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>종목 편입</h2>
+        <p class="lead">예: 삼성중공업, 두산에너빌리티, 로보티즈. 같은 종목이 이미 있으면 중복 추가하지 않습니다.</p>
+        <div class="field"><input id="name" placeholder="종목명 입력"></div>
+        <div class="field"><input id="code" placeholder="종목코드 입력 (선택)"></div>
+        <div class="controls"><button class="btn" id="saveBtn">수집 종목에 추가</button><button class="btn ghost" id="refreshBtn">목록 새로고침</button></div>
+        <div class="status" id="status"></div>
+      </article>
+
+      <article class="card">
+        <h2>현재 수집 목록</h2>
+        <p class="lead">위/아래 버튼으로 순서를 조정하면 다음 수집부터 바로 반영됩니다. 삭제도 즉시 저장됩니다.</p>
+        <div class="table">
+          <table>
+            <thead><tr><th>순서</th><th>종목명</th><th>코드</th><th>관리</th></tr></thead>
+            <tbody id="stockBody"></tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </div>
+<script>
+async function j(url,opt){const r=await fetch(url,opt);const d=await r.json();if(!r.ok) throw new Error(d.error||'요청 실패');return d}
+function status(text,isError=false){const el=document.getElementById('status');el.textContent=text;el.classList.add('show');el.style.background=isError?'#fff0ee':'#eef6f2';el.style.borderColor=isError?'#efc8c2':'#d8ebe3';el.style.color=isError?'#8b2f25':'#1d4c46'}
+function renderStocks(stocks){document.getElementById('stockBody').innerHTML=stocks.length?stocks.map((item,index)=>`<tr><td>${index+1}</td><td>${item.name}</td><td>${item.code}</td><td><div class="action-row"><button class="btn ghost move-btn" data-code="${item.code}" data-direction="up">위로</button><button class="btn ghost move-btn" data-code="${item.code}" data-direction="down">아래로</button><button class="btn danger delete-btn" data-code="${item.code}" data-name="${item.name}">삭제</button></div></td></tr>`).join(''):'<tr><td colspan="4">수집 종목이 없습니다.</td></tr>'}
+async function load(){const d=await j('/api/config/stocks');renderStocks(d.stocks||[])}
+async function save(){const payload={name:document.getElementById('name').value,code:document.getElementById('code').value};const d=await j('/api/config/stocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});status(`추가 완료: ${d.stock.name} (${d.stock.code})`);document.getElementById('name').value='';document.getElementById('code').value='';renderStocks(d.stocks||[])}
+async function move(code,direction){const d=await j('/api/config/stocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'move',code,direction})});renderStocks(d.stocks||[]);status(`순서 변경 완료: ${code} / ${direction==='up'?'위로':'아래로'}`)}
+async function remove(name,code){const d=await j('/api/config/stocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',name,code})});renderStocks(d.stocks||[]);status(`삭제 완료: ${d.deleted.name} (${d.deleted.code})`)}
+document.getElementById('saveBtn').addEventListener('click',()=>save().catch(e=>status(e.message,true)));
+document.getElementById('refreshBtn').addEventListener('click',()=>load().then(()=>status('목록을 새로고침했습니다.')).catch(e=>status(e.message,true)));
+document.getElementById('stockBody').addEventListener('click',e=>{const moveBtn=e.target.closest('.move-btn');if(moveBtn){move(moveBtn.dataset.code,moveBtn.dataset.direction).catch(err=>status(err.message,true));return}const delBtn=e.target.closest('.delete-btn');if(delBtn){remove(delBtn.dataset.name,delBtn.dataset.code).catch(err=>status(err.message,true))}});
+load().catch(e=>status(e.message,true));
+</script>
+</body>
+</html>
+

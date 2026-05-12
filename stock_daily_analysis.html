@@ -1,0 +1,141 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>일별 종가 분석</title>
+<style>
+:root{--bg:#f7f2e8;--card:#fffdf8;--ink:#132238;--muted:#6b7280;--line:#dcc7a5;--accent:#1e5c57;--bad:#c2410c;--good:#0f766e;}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top left,#fff7e7 0,#f5efe4 40%,#efe8db 100%);color:var(--ink);font:16px/1.5 'Segoe UI',sans-serif}.wrap{width:min(90vw,1600px);margin:0 auto;padding:24px 0}.hero{background:linear-gradient(135deg,#19324a,#1e5c57);color:#fff;border-radius:28px;padding:28px}.hero h1{margin:0 0 8px;font-size:40px}.nav{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.nav a{text-decoration:none;color:#fff;padding:10px 14px;border:1px solid rgba(255,255,255,.28);border-radius:999px;background:rgba(255,255,255,.08)}.card{background:var(--card);border:1px solid var(--line);border-radius:28px;padding:22px;margin-top:18px}.lead{color:var(--muted)}.controls{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.btn{border:1px solid #19324a;border-radius:999px;background:#ffe08a;padding:10px 16px;font-weight:700;cursor:pointer}.btn.secondary{background:#fff}.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}.metric{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px}.metric .k{font-size:13px;color:var(--muted)}.metric .v{font-size:24px;font-weight:700;margin-top:6px}.split{display:grid;grid-template-columns:360px 1fr;gap:18px}.table{overflow:auto;border:1px solid var(--line);border-radius:20px;background:#fff}table{width:100%;border-collapse:collapse}th,td{padding:12px 14px;border-bottom:1px solid #eee;white-space:nowrap;text-align:left}th{background:#faf3e5}.num{text-align:right}.good{color:var(--good);font-weight:700}.bad{color:var(--bad);font-weight:700}.empty{padding:16px;color:var(--muted)}label{display:block;font-size:13px;color:var(--muted);margin:12px 0 6px}select,input{width:100%;padding:12px 14px;border-radius:16px;border:1px solid var(--line);background:#fff}#chart{width:100%;height:220px;background:#fff;border:1px solid var(--line);border-radius:20px}.analysis-item{padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#fff;margin-top:10px}.sublead{font-size:13px;color:var(--muted)}@media (max-width:900px){.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+  <h1>일별 종가 분석</h1>
+  <div>종목관리 기준 종목만 대상으로 일별 OHLC, 거래량, 개인/외인/기관 순매수량과 순매수금액을 별도 저장소에 누적해 분석하는 전용 화면입니다.</div>
+  <div class="nav">
+    <a href="/">메인</a>
+    <a href="/portfolio">나의포트</a>
+    <a href="/watchlist">감시목록</a>
+    <a href="/recommendations">추천 종목</a>
+  </div>
+</section>
+
+<section class="card">
+  <h2>일별 데이터 수집</h2>
+  <p class="lead">기존 스냅샷/포트/감시 로직과 분리된 저장소에 일별 시가, 고가, 저가, 종가, 거래량, 투자자 수급을 저장합니다.</p>
+  <div class="controls">
+    <input id="daysInput" type="number" value="30" min="5" max="365" style="width:140px">
+    <button class="btn" id="collectBtn">일별 데이터 수집</button>
+    <button class="btn secondary" id="refreshBtn">다시 불러오기</button>
+  </div>
+  <div class="sublead">빠른 증분 수집 기준으로 최근 구간을 우선 갱신합니다. 수급은 네이버 금융 기준으로 수집합니다.</div>
+  <div id="status" class="lead"></div>
+</section>
+
+<section class="card split">
+  <div>
+    <h2>종목 선택</h2>
+    <label>종목</label>
+    <select id="stockSelect"></select>
+    <label>표시 개수</label>
+    <select id="limitSelect">
+      <option value="60">최근 60일</option>
+      <option value="120" selected>최근 120일</option>
+      <option value="240">최근 240일</option>
+      <option value="365">최근 365일</option>
+    </select>
+    <div id="analysisBox" style="margin-top:16px"></div>
+  </div>
+  <div>
+    <h2>가격 추이</h2>
+    <svg id="chart" viewBox="0 0 900 220"></svg>
+    <div id="chartLabel" class="lead" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>핵심 요약</h2>
+  <div id="summary" class="metric-grid"></div>
+</section>
+
+<section class="card">
+  <h2>일별 데이터 테이블</h2>
+  <div class="table">
+    <table>
+      <thead>
+        <tr>
+          <th>일자</th>
+          <th class="num">시가</th>
+          <th class="num">고가</th>
+          <th class="num">저가</th>
+          <th class="num">종가</th>
+          <th class="num">거래량</th>
+          <th class="num">개인 순매수량</th>
+          <th class="num">외인 순매수량</th>
+          <th class="num">기관 순매수량</th>
+          <th class="num">개인 순매수금액</th>
+          <th class="num">외인 순매수금액</th>
+          <th class="num">기관 순매수금액</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</section>
+</div>
+<script>
+const fmt=v=>v===null||v===undefined||v===''?'-':(typeof v==='number'?new Intl.NumberFormat('ko-KR',{maximumFractionDigits:2}).format(v):String(v));
+const num=v=>{if(v===null||v===undefined||v==='')return null;const n=Number(String(v).replaceAll(',','').replace('%',''));return Number.isFinite(n)?n:null};
+async function j(url,opt){const r=await fetch(url,opt);const t=await r.text();const d=t?JSON.parse(t):{};if(!r.ok)throw new Error(d.error||t||'요청 실패');return d}
+function toneClass(v){const n=num(v); if(n===null) return ''; return n>0?'good':(n<0?'bad':'');}
+function renderSummary(summary){
+  const items=[
+    ['종목',summary.name||'-'],
+    ['기준일',summary.latest_date||'-'],
+    ['시가',fmt(summary.latest_open)],
+    ['고가',fmt(summary.latest_high)],
+    ['저가',fmt(summary.latest_low)],
+    ['종가',fmt(summary.latest_close)],
+    ['전일 등락률',fmt(summary.one_day_change)],
+    ['5일 수익률',fmt(summary.five_day_change)],
+    ['20일 수익률',fmt(summary.twenty_day_change)],
+    ['20일 평균 거래량',fmt(summary.avg_volume_20d)],
+    ['장중 변동률',fmt(summary.intraday_range_rate)],
+    ['종가 위치(%)',fmt(summary.close_position)],
+    ['5일 개인 순매수량',fmt(summary.personal_5d)],
+    ['5일 외인 순매수량',fmt(summary.foreign_5d)],
+    ['5일 기관 순매수량',fmt(summary.institution_5d)],
+    ['직전5일 외인 순매수량',fmt(summary.foreign_prev5d)],
+    ['직전5일 기관 순매수량',fmt(summary.institution_prev5d)],
+    ['수급 신호',summary.flow_signal||'-'],
+    ['20일 개인 순매수량',fmt(summary.personal_20d)],
+    ['20일 외인 순매수량',fmt(summary.foreign_20d)],
+    ['20일 기관 순매수량',fmt(summary.institution_20d)],
+    ['20일 개인 순매수금액',fmt(summary.personal_amount_20d)],
+    ['20일 외인 순매수금액',fmt(summary.foreign_amount_20d)],
+    ['20일 기관 순매수금액',fmt(summary.institution_amount_20d)]
+  ];
+  document.getElementById('summary').innerHTML=items.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')
+}
+function renderAnalysis(items){document.getElementById('analysisBox').innerHTML=(items||[]).length?items.map(x=>`<div class="analysis-item">${x}</div>`).join(''):'<div class="empty">분석 데이터가 없습니다.</div>'}
+function drawChart(rows){const svg=document.getElementById('chart');const label=document.getElementById('chartLabel'); if(!rows||!rows.length){svg.innerHTML='';label.textContent='차트 데이터가 없습니다.';return} const vals=rows.map(r=>num(r.close_price)).filter(v=>v!==null); const labels=rows.map(r=>String(r.trade_date||'').slice(5,10)); if(!vals.length){svg.innerHTML='';label.textContent='차트 데이터가 없습니다.';return} const width=900,height=220,pad=24; const min=Math.min(...vals),max=Math.max(...vals),span=max-min||1; const pts=vals.map((v,i)=>{const x=pad+((width-pad*2)*(vals.length===1?0.5:i/(vals.length-1))); const y=height-pad-((v-min)/span)*(height-pad*2); return [x,y]}); svg.innerHTML=`<polyline fill="none" stroke="#1e5c57" stroke-width="3" points="${pts.map(p=>p.join(',')).join(' ')}"></polyline>${pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#1e5c57"></circle>${i===0||i===vals.length-1||i===Math.floor(vals.length/2)?`<text x="${p[0]}" y="${height-6}" text-anchor="middle" font-size="11" fill="#6b7280">${labels[i]}</text>`:''}`).join('')}`; label.textContent=`최근 ${vals.length}영업일 기준 최저 ${fmt(min)} / 최고 ${fmt(max)}` }
+function renderRows(rows){const body=document.getElementById('tbody'); body.innerHTML=rows&&rows.length?rows.map(r=>`<tr><td>${r.trade_date||'-'}</td><td class="num">${fmt(r.open_price)}</td><td class="num">${fmt(r.high_price)}</td><td class="num">${fmt(r.low_price)}</td><td class="num">${fmt(r.close_price)}</td><td class="num">${fmt(r.volume)}</td><td class="num ${toneClass(r.personal_net)}">${fmt(r.personal_net)}</td><td class="num ${toneClass(r.foreign_net)}">${fmt(r.foreign_net)}</td><td class="num ${toneClass(r.institution_net)}">${fmt(r.institution_net)}</td><td class="num ${toneClass(r.personal_amount)}">${fmt(r.personal_amount)}</td><td class="num ${toneClass(r.foreign_amount)}">${fmt(r.foreign_amount)}</td><td class="num ${toneClass(r.institution_amount)}">${fmt(r.institution_amount)}</td></tr>`).join(''):'<tr><td colspan="12">데이터가 없습니다.</td></tr>'}
+async function loadStocks(){const d=await j('/api/daily-analysis/stocks'); const select=document.getElementById('stockSelect'); const current=select.value; select.innerHTML=(d.stocks||[]).map(s=>`<option value="${s.code}">${s.name} (${s.row_count})</option>`).join(''); if(current && Array.from(select.options).some(x=>x.value===current)) select.value=current; if(!select.value && select.options.length) select.value=select.options[0].value; return select.value}
+async function loadData(){const code=document.getElementById('stockSelect').value; const limit=document.getElementById('limitSelect').value; if(!code){renderSummary({}); renderAnalysis([]); drawChart([]); renderRows([]); return} const d=await j(`/api/daily-analysis/data?code=${encodeURIComponent(code)}&limit=${encodeURIComponent(limit)}`); renderSummary(d.summary||{}); renderAnalysis(d.analysis||[]); drawChart(d.chart_rows||[]); renderRows(d.rows||[])}
+document.getElementById('refreshBtn').addEventListener('click',async()=>{try{document.getElementById('status').textContent='로딩 중...'; await loadStocks(); await loadData(); document.getElementById('status').textContent='';}catch(e){document.getElementById('status').textContent=e.message}})
+document.getElementById('collectBtn').addEventListener('click',async()=>{const days=document.getElementById('daysInput').value||30; const status=document.getElementById('status'); status.textContent='일별 데이터 빠른 증분 수집 중...'; try{const d=await j('/api/daily-analysis/collect',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({days})}); const detail=(d.errors||[]).length ? ' / 일부 실패 ' + d.errors.length + '건 | ' + d.errors.slice(0,12).join(' | ') : ''; const mode=(d.mode==='fast_incremental'?' / 빠른 증분 수집':''); status.textContent='수집 완료: ' + d.saved_rows + '건 저장, 기간 ' + d.start_date + '~' + d.end_date + mode + detail; await loadStocks(); await loadData();}catch(e){status.textContent=e.message}})
+document.getElementById('stockSelect').addEventListener('change',()=>loadData().catch(e=>document.getElementById('status').textContent=e.message))
+document.getElementById('limitSelect').addEventListener('change',()=>loadData().catch(e=>document.getElementById('status').textContent=e.message))
+loadStocks().then(loadData).catch(e=>document.getElementById('status').textContent=e.message)
+</script>
+</body>
+</html>
+
+
+
+
+
+
+

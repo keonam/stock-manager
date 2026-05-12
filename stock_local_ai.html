@@ -1,0 +1,223 @@
+﻿<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Local AI Lab</title>
+  <style>
+    :root{--bg:#f3efe6;--card:#fffdf8;--ink:#20242d;--muted:#68707b;--line:#d8cfbd;--accent:#1e5c57;--soft:#e3f0ec;--gold:#f0d37b;--good:#18734d;--bad:#c84639}
+    *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI","Apple SD Gothic Neo",sans-serif;background:radial-gradient(circle at top right,rgba(30,92,87,.1),transparent 24%),var(--bg);color:var(--ink)}
+    .wrap{width:min(90vw,1600px);margin:0 auto;padding:24px 0}.hero,.card{background:var(--card);border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 40px rgba(0,0,0,.06)}
+    .hero{padding:26px;background:linear-gradient(135deg,#213652,#1d5f59);color:#fff}.hero h1{margin:0 0 10px;font-size:34px}.hero p{margin:0;line-height:1.6;color:rgba(255,255,255,.86);max-width:920px}
+    .grid{display:grid;grid-template-columns:1.05fr 1fr;gap:18px;margin-top:18px}.triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-top:18px}.dual{display:grid;grid-template-columns:.9fr 1.4fr;gap:18px;margin-top:18px}.card{padding:20px}.lead{color:var(--muted);margin:0 0 14px;line-height:1.55}
+    textarea,input,select{width:100%;font:inherit;border:1px solid var(--line);border-radius:18px;padding:14px;background:#fff}textarea{min-height:180px;resize:vertical}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}.controls>*{flex:1 1 180px}.btn{border:0;border-radius:999px;padding:12px 16px;font:inherit;cursor:pointer;background:var(--gold);color:#1f2330;font-weight:700}.btn.secondary{background:#fff;border:1px solid var(--line);color:#22303a;font-weight:500;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+    pre{white-space:pre-wrap;word-break:keep-all;background:#faf5ea;border:1px solid var(--line);border-radius:18px;padding:16px;line-height:1.6;min-height:280px;overflow:auto}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:1px solid var(--line);border-radius:999px;background:#fff;padding:8px 12px;cursor:pointer}.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+    .table{overflow:auto;border:1px solid var(--line);border-radius:18px;background:#fff;margin-top:12px}table{width:100%;border-collapse:collapse;min-width:900px;font-size:13px}th,td{padding:10px 12px;border-bottom:1px solid #eee6d8;text-align:left;white-space:nowrap}th{background:#f8f1e4;position:sticky;top:0}.num{text-align:right}.table td:nth-child(n+3),.table th:nth-child(n+3){text-align:right}.good{color:var(--good);font-weight:700}.bad{color:var(--bad);font-weight:700}.note{padding:12px 0;border-bottom:1px solid #eee6d8}.note:last-child{border-bottom:0}.note h4{margin:0 0 6px}.meta{font-size:12px;color:var(--muted)}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.metric{background:#fff9ef;border:1px solid var(--line);border-radius:18px;padding:14px}.metric .k{font-size:12px;color:var(--muted)}.metric .v{font-size:24px;font-weight:700;margin-top:8px}.rank-list{display:flex;flex-direction:column;gap:10px}.rank-item{display:flex;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:16px;background:#fffaf1}
+    svg{width:100%;height:190px;background:#fff;border:1px solid var(--line);border-radius:18px}.spark-label{font-size:12px;color:var(--muted);margin-top:8px}.search{margin-top:12px}.empty{color:var(--muted);padding:16px 4px}.preset-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.preset-save{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:10px;margin-top:10px}
+    @media(max-width:1180px){.grid,.triple,.dual,.metric-grid,.preset-save{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>Local AI Lab</h1>
+      <p>외부 연계 없이 저장된 스냅샷과 규칙 기반 추론만으로 답하는 내부용 AI 페이지입니다. 수집된 데이터로 시장 해석, 종목 질문, 비교 분석, 테마 점검, 히스토리 확인, 사용자 메모 저장, 조건식 스크리닝까지 수행할 수 있습니다.</p>
+      <div class="controls">
+        <a class="btn secondary" href="/">메인 대시보드</a>
+        <a class="btn secondary" href="/portfolio">나의포트</a>
+        <a class="btn secondary" href="/watchlist">감시목록</a>
+        <a class="btn secondary" href="/collection-settings">수집 종목 관리</a>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <h2>질문</h2>
+        <p class="lead">예: 오늘 시장에서 가장 강한 종목은?, 에코프로머티와 한화에어로스페이스를 비교해줘, 거래량이 붙는 종목을 알려줘</p>
+        <div class="controls">
+          <select id="snapshot"></select>
+          <select id="compare"></select>
+        </div>
+        <textarea id="question">오늘 시장 요약과 관심 종목 흐름을 알려줘.</textarea>
+        <div class="controls">
+          <button class="btn" id="askBtn">로컬 AI 답변 생성</button>
+          <button class="btn secondary" id="fillSummaryBtn">요약 질문</button>
+          <button class="btn secondary" id="fillVolumeBtn">거래량 질문</button>
+          <button class="btn secondary" id="fillCompareBtn">비교 질문</button>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>답변</h2>
+        <p class="lead">저장된 데이터와 내부 규칙으로 생성한 분석 결과입니다.</p>
+        <pre id="answer">질문을 입력하고 실행해 주세요.</pre>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>조건식 스크리너</h2>
+      <p class="lead">저장된 최신 스냅샷 기준으로 등락률, 거래량 배수, 갭, 장중 변동성, 테마 조건을 빠르게 걸어봅니다. 결과 종목은 바로 포트 후보나 감시목록으로 보낼 수 있고, 자주 쓰는 조건은 프리셋으로 저장할 수 있습니다.</p>
+      <div class="preset-row">
+        <button class="btn secondary preset-btn" data-preset="momentum">모멘텀</button>
+        <button class="btn secondary preset-btn" data-preset="volume">거래량 급증</button>
+        <button class="btn secondary preset-btn" data-preset="battery">2차전지</button>
+        <button class="btn secondary preset-btn" data-preset="defense">방산/우주</button>
+        <button class="btn secondary preset-btn" data-preset="gap">갭 포착</button>
+        <button class="btn secondary preset-btn" data-preset="volatile">고변동</button>
+        <button class="btn secondary preset-btn" data-preset="reset">초기화</button>
+      </div>
+      <div class="preset-save">
+        <input id="presetName" placeholder="내 프리셋 이름">
+        <button class="btn secondary" id="savePresetBtn">현재 조건 저장</button>
+        <div class="controls" style="margin:0">
+          <select id="savedPresets"><option value="">저장 프리셋 선택</option></select>
+          <button class="btn secondary" id="deletePresetBtn">선택 프리셋 삭제</button>
+        </div>
+      </div>
+      <div class="controls">
+        <input id="screenChange" placeholder="최소 등락률(%) 예: 3" type="number" step="0.01">
+        <input id="screenVolume" placeholder="최소 거래량 배수 예: 1.5" type="number" step="0.01">
+        <input id="screenGap" placeholder="최소 시가갭률(%) 예: 2" type="number" step="0.01">
+        <input id="screenRange" placeholder="최소 장중변동률(%) 예: 6" type="number" step="0.01">
+        <select id="screenTheme"><option value="">전체 테마</option></select>
+        <button class="btn" id="screenBtn">스크리너 실행</button>
+      </div>
+      <div class="table">
+        <table>
+          <thead><tr><th>종목</th><th>코드</th><th>등락률</th><th>거래량</th><th>거래량배수</th><th>시가갭률</th><th>장중변동률</th><th>종가위치</th><th>현재가</th><th>관리</th></tr></thead>
+          <tbody id="screenBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="triple">
+      <article class="card">
+        <h2>선택 종목 요약</h2>
+        <p class="lead">현재 스냅샷에서 선택한 종목의 핵심 지표를 빠르게 확인합니다.</p>
+        <div class="controls"><select id="historyStock"></select></div>
+        <div class="metric-grid" id="stockSummary"></div>
+      </article>
+
+      <article class="card">
+        <h2>종목 히스토리</h2>
+        <p class="lead">저장소에 축적된 스냅샷 기준으로 선택한 종목의 가격 흐름을 간단히 확인합니다.</p>
+        <svg id="historyChart" viewBox="0 0 600 190" preserveAspectRatio="none"></svg>
+        <div class="spark-label" id="historyLabel">히스토리를 불러오는 중입니다.</div>
+      </article>
+
+      <article class="card">
+        <h2>랭킹 보드</h2>
+        <p class="lead">현재 스냅샷 기준으로 강세, 약세, 거래량, 갭, 변동성 포인트를 빠르게 확인합니다.</p>
+        <div class="controls">
+          <button class="btn secondary" id="rankUpBtn">상승 상위</button>
+          <button class="btn secondary" id="rankDownBtn">하락 상위</button>
+          <button class="btn secondary" id="rankVolumeBtn">거래량 상위</button>
+          <button class="btn secondary" id="rankGapBtn">갭 상위</button>
+          <button class="btn secondary" id="rankRangeBtn">변동성 상위</button>
+        </div>
+        <div class="rank-list" id="rankList"></div>
+      </article>
+    </section>
+
+    <section class="dual">
+      <article class="card">
+        <h2>테마 그룹 분석</h2>
+        <p class="lead">저장된 종목군을 반도체, 방산/우주, 2차전지 등으로 묶어 테마 강도를 확인합니다.</p>
+        <div class="table">
+          <table>
+            <thead><tr><th>테마</th><th>구성 수</th><th>평균 등락률</th><th>선도 종목</th></tr></thead>
+            <tbody id="themeBody"></tbody>
+          </table>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>분석 메모</h2>
+        <p class="lead">내부 판단, 관찰 포인트, 다음 확인 사항을 스냅샷 기준으로 저장합니다.</p>
+        <input id="noteTitle" placeholder="메모 제목">
+        <div class="controls"><input id="noteTags" placeholder="태그 예: 방산,관심,리밸런싱"></div>
+        <textarea id="noteBody" style="min-height:130px" placeholder="저장소 데이터 기반 메모를 적어 주세요."></textarea>
+        <div class="controls"><button class="btn" id="saveNoteBtn">메모 저장</button></div>
+        <div id="notes"></div>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:18px">
+      <h2>참고 데이터</h2>
+      <p class="lead">로컬 AI가 바라보는 현재 스냅샷 데이터를 섹션별로 빠르게 확인합니다.</p>
+      <input class="search" id="tableSearch" placeholder="종목명/코드/구분 검색">
+      <div class="tabs" id="tabs" style="margin-top:12px"></div>
+      <div class="table">
+        <table>
+          <thead id="thead"></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+<script>
+const state={snapshots:[],selected:null,section:'종목',currentRows:[],rankMode:'up',historyCode:''};
+const fmt=v=>v===null||v===undefined||v===''?'-':(typeof v==='number'?(Number.isInteger(v)?v.toLocaleString('ko-KR'):v.toLocaleString('ko-KR',{maximumFractionDigits:2})):String(v));
+const num=v=>{const n=Number(v);return Number.isNaN(n)?null:n};
+const PRESETS={momentum:{change:3,volume:'',gap:'',range:'',theme:''},volume:{change:'',volume:1.8,gap:'',range:'',theme:''},battery:{change:'',volume:'',gap:'',range:'',theme:'2차전지'},defense:{change:'',volume:'',gap:'',range:'',theme:'방산/우주'},gap:{change:'',volume:'',gap:2,range:'',theme:''},volatile:{change:'',volume:'',gap:'',range:6,theme:''},reset:{change:'',volume:'',gap:'',range:'',theme:''}};
+const STORAGE_KEY='stock_local_ai_presets_v1';
+async function j(url,opt){const r=await fetch(url,opt);const d=await r.json();if(!r.ok) throw new Error(d.error||'요청 실패');return d}
+function readSavedPresets(){try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]')}catch(_){return []}}
+function writeSavedPresets(items){localStorage.setItem(STORAGE_KEY,JSON.stringify(items))}
+function renderSavedPresets(){const select=document.getElementById('savedPresets');const items=readSavedPresets();select.innerHTML='<option value="">저장 프리셋 선택</option>'+items.map((item,idx)=>`<option value="${idx}">${item.name}</option>`).join('')}
+function currentScreenState(){return {change:document.getElementById('screenChange').value,volume:document.getElementById('screenVolume').value,gap:document.getElementById('screenGap').value,range:document.getElementById('screenRange').value,theme:document.getElementById('screenTheme').value||''}}
+function saveCurrentPreset(){const name=document.getElementById('presetName').value.trim();if(!name){document.getElementById('answer').textContent='프리셋 이름을 입력해 주세요.';return}const items=readSavedPresets().filter(item=>item.name!==name);items.push({name,...currentScreenState()});writeSavedPresets(items);renderSavedPresets();document.getElementById('presetName').value='';document.getElementById('answer').textContent=`프리셋을 저장했습니다: ${name}`}
+function loadSavedPreset(index){const items=readSavedPresets();const preset=items[Number(index)];if(!preset)return;document.getElementById('screenChange').value=preset.change||'';document.getElementById('screenVolume').value=preset.volume||'';document.getElementById('screenGap').value=preset.gap||'';document.getElementById('screenRange').value=preset.range||'';document.getElementById('screenTheme').value=preset.theme||'';runScreener().catch(e=>document.getElementById('answer').textContent=e.message)}
+function deleteSavedPreset(index){const items=readSavedPresets();if(index===''||items[Number(index)]===undefined){document.getElementById('answer').textContent='삭제할 프리셋을 선택해 주세요.';return}const removed=items.splice(Number(index),1)[0];writeSavedPresets(items);renderSavedPresets();document.getElementById('answer').textContent='프리셋을 삭제했습니다: '+removed.name}
+function rowByCode(code){return state.currentRows.find(row=>String(row['코드'])===String(code))}
+function stockRows(){return state.currentRows.filter(row=>row['구분']==='종목')}
+function renderSnapshotSelectors(){const snapshot=document.getElementById('snapshot');const compare=document.getElementById('compare');const options=state.snapshots.map(x=>`<option value="${x.id}">${x.collected_at}</option>`).join('');snapshot.innerHTML=options;compare.innerHTML=`<option value="">비교 안 함</option>`+options;if(state.selected) snapshot.value=String(state.selected)}
+function renderStockSummary(code){const row=rowByCode(code);const target=document.getElementById('stockSummary');if(!row){target.innerHTML='<div class="empty">종목 요약 데이터가 없습니다.</div>';return}const cards=[['현재가',fmt(row['현재가'])],['등락률',fmt(row['등락률(%)'])],['거래량배수',fmt(row['거래량배수'])],['시가갭률',fmt(row['시가갭률(%)'])],['장중변동률',fmt(row['장중변동률(%)'])],['종가위치',fmt(row['종가위치(%)'])]];target.innerHTML=cards.map(([k,v])=>`<div class="metric"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('')}
+function filteredRows(){const q=document.getElementById('tableSearch').value.trim().toLowerCase();let rows=(state.currentRows||[]).filter(r=>r['구분']===state.section);if(!q)return rows;return rows.filter(r=>Object.values(r).some(v=>String(v??'').toLowerCase().includes(q)))}
+function renderDetail(){const tabs=document.getElementById('tabs');const head=document.getElementById('thead');const body=document.getElementById('tbody');const sections=['수급','지수','상품','종목'];tabs.innerHTML=sections.map(s=>`<button class="tab ${state.section===s?'active':''}" data-section="${s}">${s}</button>`).join('');const rows=filteredRows();if(!rows.length){head.innerHTML='<tr><th>데이터가 없습니다.</th></tr>';body.innerHTML='';return}const cols=Object.keys(rows[0]);head.innerHTML=`<tr>${cols.map(c=>{const isNum=rows.some(r=>num(r[c])!==null);return `<th class="${isNum?'num':''}">${c}</th>`}).join('')}</tr>`;body.innerHTML=rows.map(r=>`<tr>${cols.map(c=>{const n=num(r[c]);const classes=[];if(n!==null)classes.push('num');if(c.includes('등락률')||c.includes('전일대비')){if(n>0)classes.push('good');else if(n<0)classes.push('bad')}return `<td class="${classes.join(' ')}">${fmt(r[c])}</td>`}).join('')}</tr>`).join('')}
+function renderThemeTable(themes){document.getElementById('themeBody').innerHTML=themes.length?themes.map(theme=>`<tr><td>${theme.theme}</td><td>${fmt(theme.count)}</td><td class="${(theme.avg_rate||0)>0?'good':(theme.avg_rate||0)<0?'bad':''}">${fmt(theme.avg_rate)}</td><td>${(theme.leaders||[]).join(', ')||'-'}</td></tr>`).join(''):'<tr><td colspan="4">테마 데이터가 없습니다.</td></tr>'}
+function renderNotes(notes){document.getElementById('notes').innerHTML=notes.length?notes.map(note=>`<div class="note"><h4>${note.title}</h4><div class="meta">${note.created_at} · ${(note.tags||[]).join(', ')||'태그 없음'}</div><div style="margin-top:8px;line-height:1.6">${note.body.replace(/\n/g,'<br>')}</div></div>`).join(''):'<div class="empty">저장된 메모가 없습니다.</div>'}
+function renderHistoryStockOptions(){const select=document.getElementById('historyStock');const stocks=stockRows();select.innerHTML=stocks.map(row=>`<option value="${row['코드']}">${row['이름']}</option>`).join('');if(stocks.length){const nextCode=state.historyCode&&stocks.some(x=>String(x['코드'])===String(state.historyCode))?state.historyCode:stocks[0]['코드'];state.historyCode=nextCode;select.value=String(nextCode);renderStockSummary(nextCode);loadHistory(nextCode).catch(err=>document.getElementById('historyLabel').textContent=err.message)}}
+function drawSparkline(values,labels){const svg=document.getElementById('historyChart');const label=document.getElementById('historyLabel');if(!values.length){svg.innerHTML='';label.textContent='히스토리 데이터가 없습니다.';return}const width=600,height=190,pad=20;const min=Math.min(...values),max=Math.max(...values);const span=max-min||1;const pts=values.map((v,i)=>{const x=pad+((width-pad*2)*(values.length===1?0.5:i/(values.length-1)));const y=height-pad-((v-min)/span)*(height-pad*2);return [x,y]});const poly=pts.map(p=>p.join(',')).join(' ');const dots=pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#1e5c57"></circle><text x="${p[0]}" y="${height-6}" text-anchor="middle" font-size="11" fill="#6b7280">${labels[i]}</text>`).join('');svg.innerHTML=`<polyline fill="none" stroke="#1e5c57" stroke-width="3" points="${poly}"></polyline>${dots}`;label.textContent=`최근 ${values.length}개 저장 시점 기준 최저 ${fmt(min)} / 최고 ${fmt(max)}`}
+function renderRankings(){const list=document.getElementById('rankList');const rows=stockRows().slice();if(state.rankMode==='up'){rows.sort((a,b)=>(num(b['등락률(%)'])||-999)-(num(a['등락률(%)'])||-999))}else if(state.rankMode==='down'){rows.sort((a,b)=>(num(a['등락률(%)'])||999)-(num(b['등락률(%)'])||999))}else if(state.rankMode==='volume'){rows.sort((a,b)=>(num(b['거래량'])||-999)-(num(a['거래량'])||-999))}else if(state.rankMode==='gap'){rows.sort((a,b)=>Math.abs(num(b['시가갭률(%)'])||-999)-Math.abs(num(a['시가갭률(%)'])||-999))}else{rows.sort((a,b)=>(num(b['장중변동률(%)'])||-999)-(num(a['장중변동률(%)'])||-999))}const top=rows.slice(0,6);list.innerHTML=top.length?top.map(row=>`<div class="rank-item"><div><strong>${row['이름']}</strong><div class="meta">${row['코드']}</div></div><div class="${(num(row['등락률(%)'])||0)>0?'good':(num(row['등락률(%)'])||0)<0?'bad':''}">${state.rankMode==='volume'?fmt(row['거래량']):state.rankMode==='gap'?fmt(row['시가갭률(%)']):state.rankMode==='range'?fmt(row['장중변동률(%)']):fmt(row['등락률(%)'])}</div></div>`).join(''):'<div class="empty">랭킹 데이터가 없습니다.</div>'}
+function renderScreener(results){document.getElementById('screenBody').innerHTML=results&&results.length?results.map(row=>`<tr><td>${row['이름']}</td><td>${row['코드']}</td><td class="${(num(row['등락률(%)'])||0)>0?'good':(num(row['등락률(%)'])||0)<0?'bad':''}">${fmt(row['등락률(%)'])}</td><td>${fmt(row['거래량'])}</td><td>${fmt(row['거래량배수'])}</td><td>${fmt(row['시가갭률(%)'])}</td><td>${fmt(row['장중변동률(%)'])}</td><td>${fmt(row['종가위치(%)'])}</td><td>${fmt(row['현재가'])}</td><td><div class="controls" style="margin:0"><button class="btn secondary add-portfolio-btn" data-name="${row['이름']}" data-code="${row['코드']}">포트 후보</button><button class="btn secondary add-watchlist-btn" data-name="${row['이름']}" data-code="${row['코드']}">감시추가</button></div></td></tr>`).join(''):'<tr><td colspan="10">조건에 맞는 종목이 없습니다.</td></tr>'}
+function applyPreset(key){const preset=PRESETS[key]||PRESETS.reset;document.getElementById('screenChange').value=preset.change;document.getElementById('screenVolume').value=preset.volume;document.getElementById('screenGap').value=preset.gap||'';document.getElementById('screenRange').value=preset.range||'';document.getElementById('screenTheme').value=preset.theme||'';runScreener().catch(e=>document.getElementById('answer').textContent=e.message)}
+async function loadHistory(code){state.historyCode=code;renderStockSummary(code);const d=await j(`/api/history?code=${encodeURIComponent(code)}&limit=12`);const history=(d.history||[]).slice().reverse();const points=history.filter(item=>num(item['현재가'])!==null);const values=points.map(item=>num(item['현재가']));const labels=points.map(item=>String(item['스냅샷시각']||item['기준일']||'').slice(5,10));drawSparkline(values,labels)}
+async function loadSnapshot(id){const d=await j(`/api/snapshots/${id}`);state.selected=d.snapshot.id;state.currentRows=d.snapshot.rows||[];renderDetail();renderHistoryStockOptions();renderRankings();await Promise.all([loadThemes(id),loadNotes()])}
+async function loadThemes(id){const d=await j(`/api/themes?snapshot_id=${id}`);renderThemeTable(d.themes||[])}
+async function loadNotes(){const d=await j('/api/notes');renderNotes(d.notes||[])}
+async function runScreener(){const snapshotId=document.getElementById('snapshot').value;const minChange=document.getElementById('screenChange').value;const minVolume=document.getElementById('screenVolume').value;const minGap=document.getElementById('screenGap').value;const minRange=document.getElementById('screenRange').value;const theme=document.getElementById('screenTheme').value;const params=new URLSearchParams();if(snapshotId)params.set('snapshot_id',snapshotId);if(minChange!=='')params.set('min_change',minChange);if(minVolume!=='')params.set('min_volume_ratio',minVolume);if(minGap!=='')params.set('min_gap_rate',minGap);if(minRange!=='')params.set('min_intraday_range_rate',minRange);if(theme)params.set('theme',theme);const d=await j(`/api/screener?${params.toString()}`);const select=document.getElementById('screenTheme');const current=select.value;select.innerHTML='<option value="">전체 테마</option>'+(d.themes||[]).map(x=>`<option value="${x}">${x}</option>`).join('');if(theme){select.value=theme}else if(current){select.value=current}renderScreener(d.results||[])}
+async function addScreenerToPortfolio(name,code){await j('/api/portfolio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code,quantity:0,avg_price:0,target_weight:0,memo:'스크리너 후보에서 추가'})});document.getElementById('answer').textContent=`포트 후보에 추가했습니다: ${name} (${code})`}
+async function addScreenerToWatchlist(name,code){await j('/api/watchlist',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,code,priority:50,memo:'로컬 AI 스크리너에서 추가'})});document.getElementById('answer').textContent=`감시목록에 추가했습니다: ${name} (${code})`}
+async function load(){const d=await j('/api/dashboard');state.snapshots=d.snapshots;if(d.latest_snapshot){state.selected=d.latest_snapshot.id}renderSnapshotSelectors();renderSavedPresets();if(state.selected){await loadSnapshot(state.selected);await runScreener()}}
+async function ask(){const payload={snapshot_id:document.getElementById('snapshot').value,compare_snapshot_id:document.getElementById('compare').value,question:document.getElementById('question').value};const d=await j('/api/local-ai/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});document.getElementById('answer').textContent=d.answer;renderThemeTable(d.themes||[])}
+async function saveNote(){const payload={snapshot_id:document.getElementById('snapshot').value,title:document.getElementById('noteTitle').value,tags:document.getElementById('noteTags').value,body:document.getElementById('noteBody').value};await j('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});document.getElementById('noteTitle').value='';document.getElementById('noteTags').value='';document.getElementById('noteBody').value='';await loadNotes()}
+document.getElementById('askBtn').addEventListener('click',()=>ask().catch(e=>document.getElementById('answer').textContent=e.message));
+document.getElementById('fillSummaryBtn').addEventListener('click',()=>document.getElementById('question').value='오늘 시장 요약과 관심 종목 흐름을 알려줘.');
+document.getElementById('fillVolumeBtn').addEventListener('click',()=>document.getElementById('question').value='오늘 거래량이 강하게 붙는 종목과 이유를 저장소 데이터 기준으로 설명해줘.');
+document.getElementById('fillCompareBtn').addEventListener('click',()=>document.getElementById('question').value='현재 스냅샷과 비교 스냅샷을 기준으로 강도 변화가 큰 종목을 설명해줘.');
+document.getElementById('saveNoteBtn').addEventListener('click',()=>saveNote().catch(e=>document.getElementById('answer').textContent=e.message));
+document.getElementById('screenBtn').addEventListener('click',()=>runScreener().catch(e=>document.getElementById('answer').textContent=e.message));
+document.getElementById('savePresetBtn').addEventListener('click',()=>saveCurrentPreset());
+document.getElementById('deletePresetBtn').addEventListener('click',()=>deleteSavedPreset(document.getElementById('savedPresets').value));
+document.getElementById('savedPresets').addEventListener('change',e=>{if(e.target.value!=='')loadSavedPreset(e.target.value)});
+document.getElementById('snapshot').addEventListener('change',e=>loadSnapshot(e.target.value).then(()=>runScreener()).catch(err=>document.getElementById('answer').textContent=err.message));
+document.getElementById('historyStock').addEventListener('change',e=>loadHistory(e.target.value).catch(err=>document.getElementById('historyLabel').textContent=err.message));
+document.getElementById('tabs').addEventListener('click',e=>{const tab=e.target.closest('.tab');if(!tab)return;state.section=tab.dataset.section;renderDetail()});
+document.getElementById('tableSearch').addEventListener('input',()=>renderDetail());
+document.getElementById('rankUpBtn').addEventListener('click',()=>{state.rankMode='up';renderRankings()});
+document.getElementById('rankDownBtn').addEventListener('click',()=>{state.rankMode='down';renderRankings()});
+document.getElementById('rankVolumeBtn').addEventListener('click',()=>{state.rankMode='volume';renderRankings()});
+document.getElementById('rankGapBtn').addEventListener('click',()=>{state.rankMode='gap';renderRankings()});
+document.getElementById('rankRangeBtn').addEventListener('click',()=>{state.rankMode='range';renderRankings()});
+document.querySelectorAll('.preset-btn').forEach(btn=>btn.addEventListener('click',()=>applyPreset(btn.dataset.preset)));
+document.getElementById('screenBody').addEventListener('click',e=>{const portfolioBtn=e.target.closest('.add-portfolio-btn');if(portfolioBtn){addScreenerToPortfolio(portfolioBtn.dataset.name,portfolioBtn.dataset.code).catch(err=>document.getElementById('answer').textContent=err.message);return}const watchBtn=e.target.closest('.add-watchlist-btn');if(watchBtn){addScreenerToWatchlist(watchBtn.dataset.name,watchBtn.dataset.code).catch(err=>document.getElementById('answer').textContent=err.message)}});
+load().catch(e=>document.getElementById('answer').textContent=e.message);
+</script>
+</body>
+</html>
+
+
+

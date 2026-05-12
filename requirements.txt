@@ -1,0 +1,9 @@
+﻿numpy>=2.2.0
+pandas>=2.3.0,<3.0
+requests>=2.32.0
+beautifulsoup4>=4.12.3
+deprecated>=1.2.14
+multipledispatch>=1.0.0
+matplotlib>=3.9.0
+yfinance>=0.2.54,<1.0
+lxml>=5.3.0
