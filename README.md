@@ -28,3 +28,17 @@ The service runs with:
 
 Make sure the EC2 security group allows inbound TCP `81`.
 
+## GitHub Actions deploy
+
+The `Deploy to EC2` workflow runs on every push to `main` and can also be started manually.
+
+Required repository secrets:
+
+- `EC2_HOST`
+- `EC2_SSH_KEY` or `EC2_PRIVATE_KEY`
+
+Optional repository secrets or variables:
+
+- `EC2_USER` or `EC2_USERNAME`, defaults to `ubuntu`
+- `EC2_PORT`, defaults to `22`
+- repository variable `APP_DIR`, defaults to `/opt/stock-manager`

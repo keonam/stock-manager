@@ -1,0 +1,60 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: stock-manager-ec2
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy stock manager
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          EC2_PORT: ${{ secrets.EC2_PORT }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_PRIVATE_KEY: ${{ secrets.EC2_PRIVATE_KEY }}
+          APP_DIR: ${{ vars.APP_DIR }}
+        run: |
+          set -euo pipefail
+
+          HOST="${EC2_HOST:-}"
+          USER_NAME="${EC2_USER:-${EC2_USERNAME:-ubuntu}}"
+          SSH_PORT="${EC2_PORT:-22}"
+          PRIVATE_KEY="${EC2_SSH_KEY:-${EC2_PRIVATE_KEY:-}}"
+          TARGET_APP_DIR="${APP_DIR:-/opt/stock-manager}"
+
+          if [ -z "$HOST" ]; then
+            echo "EC2_HOST secret is required." >&2
+            exit 1
+          fi
+
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "EC2_SSH_KEY or EC2_PRIVATE_KEY secret is required." >&2
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$PRIVATE_KEY" > ~/.ssh/stock-manager-ec2
+          chmod 600 ~/.ssh/stock-manager-ec2
+          ssh-keyscan -p "$SSH_PORT" "$HOST" >> ~/.ssh/known_hosts
+
+          ssh -i ~/.ssh/stock-manager-ec2 -p "$SSH_PORT" "$USER_NAME@$HOST" \
+            "APP_USER='$USER_NAME' APP_DIR='$TARGET_APP_DIR' REPO_URL='https://github.com/keonam/stock-manager.git' bash -s" \
+            < deploy/install_ec2.sh
+
