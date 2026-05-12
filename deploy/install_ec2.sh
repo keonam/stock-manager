@@ -27,6 +27,6 @@ sudo cp "$APP_DIR/deploy/stock-manager.service" "/etc/systemd/system/${SERVICE_N
 sudo sed -i "s/^User=.*/User=${APP_USER}/" "/etc/systemd/system/${SERVICE_NAME}.service"
 sudo sed -i "s/^Group=.*/Group=${APP_USER}/" "/etc/systemd/system/${SERVICE_NAME}.service"
 sudo systemctl daemon-reload
-sudo systemctl enable --now "$SERVICE_NAME"
+sudo systemctl enable "$SERVICE_NAME"
+sudo systemctl restart "$SERVICE_NAME"
 sudo systemctl status "$SERVICE_NAME" --no-pager
-
