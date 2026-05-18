@@ -1,4 +1,4 @@
-import json, math, os, re, sqlite3
+import json, math, os, re, sqlite3, threading, time
 from datetime import datetime, timedelta
 from email.utils import parsedate_to_datetime
 from html import unescape
@@ -15,6 +15,75 @@ from main import KST, collect_market_snapshot, load_config, stock, format_date, 
 B=Path(__file__).resolve().parent; O=B/'output'/'stock_web'; S=O/'snapshots'; D=O/'stock_snapshots_v2.db'; H=os.environ.get('STOCK_WEB_HOST','127.0.0.1'); P=int(os.environ.get('STOCK_WEB_PORT','8060'))
 
 def now(): return datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')
+
+AUTO_COLLECT_ENABLED = os.environ.get('AUTO_COLLECT_ENABLED', '1').strip().lower() not in ('0', 'false', 'no', 'off')
+AUTO_COLLECT_START = (9, 0, 30)
+AUTO_COLLECT_END = (15, 30, 30)
+AUTO_COLLECT_INTERVAL_SECONDS = 10 * 60
+AUTO_COLLECT_STATE = {'last_slot': None, 'running': False}
+AUTO_COLLECT_LOCK = threading.Lock()
+AUTO_COLLECT_STARTED = False
+AUTO_COLLECT_BUSINESS_DAY_CACHE = {}
+
+def is_market_business_day(day):
+    key = format_date(day)
+    if key in AUTO_COLLECT_BUSINESS_DAY_CACHE:
+        return AUTO_COLLECT_BUSINESS_DAY_CACHE[key]
+    result = False
+    if day.weekday() < 5:
+        try:
+            nearest = stock.get_nearest_business_day_in_a_week(key)
+            result = str(nearest) == key
+        except Exception as exc:
+            print(f'[auto-collect] trading-day check fallback: {exc}', flush=True)
+            result = True
+    AUTO_COLLECT_BUSINESS_DAY_CACHE[key] = result
+    return result
+
+def auto_collect_slot(dt):
+    if not is_market_business_day(dt.date()):
+        return None
+    start = dt.replace(hour=AUTO_COLLECT_START[0], minute=AUTO_COLLECT_START[1], second=AUTO_COLLECT_START[2], microsecond=0)
+    end = dt.replace(hour=AUTO_COLLECT_END[0], minute=AUTO_COLLECT_END[1], second=AUTO_COLLECT_END[2], microsecond=0)
+    if dt < start or dt > end:
+        return None
+    elapsed = int((dt - start).total_seconds())
+    slot = start + timedelta(seconds=(elapsed // AUTO_COLLECT_INTERVAL_SECONDS) * AUTO_COLLECT_INTERVAL_SECONDS)
+    return slot.strftime('%Y-%m-%d %H:%M:%S')
+
+def auto_collect_loop():
+    print('[auto-collect] enabled: Mon-Fri trading days, 09:00:30-15:30:30 KST, every 10 minutes', flush=True)
+    while True:
+        slot = auto_collect_slot(datetime.now(KST))
+        if slot:
+            should_run = False
+            with AUTO_COLLECT_LOCK:
+                if not AUTO_COLLECT_STATE['running'] and AUTO_COLLECT_STATE['last_slot'] != slot:
+                    AUTO_COLLECT_STATE['running'] = True
+                    AUTO_COLLECT_STATE['last_slot'] = slot
+                    should_run = True
+            if should_run:
+                try:
+                    print(f'[auto-collect] collecting dashboard snapshot for slot {slot}', flush=True)
+                    collect()
+                    print(f'[auto-collect] completed dashboard snapshot for slot {slot}', flush=True)
+                except Exception as exc:
+                    print(f'[auto-collect] failed dashboard snapshot for slot {slot}: {exc}', flush=True)
+                finally:
+                    with AUTO_COLLECT_LOCK:
+                        AUTO_COLLECT_STATE['running'] = False
+        time.sleep(1)
+
+def start_auto_collect_scheduler():
+    global AUTO_COLLECT_STARTED
+    if not AUTO_COLLECT_ENABLED:
+        print('[auto-collect] disabled by AUTO_COLLECT_ENABLED', flush=True)
+        return
+    if AUTO_COLLECT_STARTED:
+        return
+    thread = threading.Thread(target=auto_collect_loop, name='stock-dashboard-auto-collect', daemon=True)
+    thread.start()
+    AUTO_COLLECT_STARTED = True
 def nv(v):
     if v in (None,'','-','None'): return None
     if isinstance(v,(int,float)):
@@ -1181,7 +1250,12 @@ class X(BaseHTTPRequestHandler):
             return self.err('지원하지 않는 경로입니다.',404)
         except Exception as e: return self.err(str(e),500)
 
-def run(): init(); s=ThreadingHTTPServer((H,P),X); print(f'Stock web server running on http://{H}:{P}'); s.serve_forever()
+def run():
+    init()
+    start_auto_collect_scheduler()
+    s = ThreadingHTTPServer((H, P), X)
+    print(f'Stock web server running on http://{H}:{P}')
+    s.serve_forever()
 if __name__=='__main__': run()
 
 

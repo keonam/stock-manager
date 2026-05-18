@@ -24,9 +24,21 @@ The service runs with:
 
 - `STOCK_WEB_HOST=0.0.0.0`
 - `STOCK_WEB_PORT=81`
+- `AUTO_COLLECT_ENABLED=1`
 - systemd service name: `stock-manager`
 
 Make sure the EC2 security group allows inbound TCP `81`.
+
+## Automatic dashboard collection
+
+The main dashboard collection runs automatically while the web server is running:
+
+- Trading days only: Monday-Friday, excluding KRX holidays when the pykrx trading-day check is available
+- Time window: `09:00:30` through `15:30:30` KST
+- Interval: every 10 minutes
+- Manual collection from the dashboard button remains available
+
+Set `AUTO_COLLECT_ENABLED=0` to disable the background collector.
 
 ## GitHub Actions deploy
 
