@@ -24,6 +24,8 @@ AUTO_COLLECT_STATE = {'last_slot': None, 'running': False}
 AUTO_COLLECT_LOCK = threading.Lock()
 AUTO_COLLECT_STARTED = False
 AUTO_COLLECT_BUSINESS_DAY_CACHE = {}
+SNAPSHOT_FILE_RETENTION_DAYS = int(os.environ.get('SNAPSHOT_FILE_RETENTION_DAYS', '14') or 14)
+SNAPSHOT_FILE_RETENTION_COUNT = int(os.environ.get('SNAPSHOT_FILE_RETENTION_COUNT', '400') or 400)
 
 def is_market_business_day(day):
     key = format_date(day)
@@ -103,6 +105,16 @@ def clean(v):
 def jd(x): return json.dumps(clean(x),ensure_ascii=False,allow_nan=False)
 def rj(p): return json.loads(Path(p).read_text(encoding='utf-8-sig'))
 def wj(p,x): Path(p).write_text(jd(x),encoding='utf-8')
+def prune_snapshot_files():
+    try:
+        cutoff = time.time() - max(SNAPSHOT_FILE_RETENTION_DAYS, 0) * 86400
+        files = sorted([p for p in S.glob('snapshot_*') if p.is_file()], key=lambda p: p.stat().st_mtime, reverse=True)
+        for idx, path in enumerate(files):
+            st = path.stat()
+            if idx >= SNAPSHOT_FILE_RETENTION_COUNT or (SNAPSHOT_FILE_RETENTION_DAYS > 0 and st.st_mtime < cutoff):
+                path.unlink(missing_ok=True)
+    except Exception as exc:
+        print(f'[snapshot-prune] skipped: {exc}', flush=True)
 def rows(sec,allr): return [r for r in allr if str(r.get('구분'))==sec]
 def fmt(v):
     n=nv(v)
@@ -206,6 +218,7 @@ def collect():
     wj(S/f'snapshot_{ts}.json',{'id':i,'collected_at':t,'rows':rs})
     try: x['dataframe'].to_csv(S/f'snapshot_{ts}.csv',index=False,encoding='utf-8-sig')
     except: pass
+    prune_snapshot_files()
     return {'id':i,'collected_at':t,'rows':rs}
 
 

@@ -37,8 +37,10 @@ The main dashboard collection runs automatically while the web server is running
 - Time window: `09:00:30` through `15:30:30` KST
 - Interval: every 10 minutes
 - Manual collection from the dashboard button remains available
+- Snapshot CSV/JSON files are retained for 14 days or 400 files by default because the canonical data is stored in SQLite
 
 Set `AUTO_COLLECT_ENABLED=0` to disable the background collector.
+Set `SNAPSHOT_FILE_RETENTION_DAYS` or `SNAPSHOT_FILE_RETENTION_COUNT` to adjust file retention.
 
 ## GitHub Actions deploy
 
