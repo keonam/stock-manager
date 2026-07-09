@@ -15,7 +15,7 @@ if [ ! -d "$APP_DIR/.git" ]; then
   sudo -u "$APP_USER" git clone "$REPO_URL" "$APP_DIR"
 else
   sudo -u "$APP_USER" git -C "$APP_DIR" fetch origin main
-  sudo -u "$APP_USER" git -C "$APP_DIR" reset --hard origin/main
+  sudo -u "$APP_USER" git -C "$APP_DIR" merge --ff-only origin/main
 fi
 
 sudo -u "$APP_USER" python3 -m venv "$APP_DIR/.venv"
